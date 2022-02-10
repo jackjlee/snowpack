@@ -1,0 +1,159 @@
+---
+title: "Snowpack in the Western U.S."
+output:
+  flexdashboard::flex_dashboard
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r load-packages}
+library(tidyverse)
+library(flexdashboard)
+library(crosstalk)
+library(leaflet)
+```
+
+```{r apr-extract-transform}
+
+apr_all <- read_csv("snowpack-april.csv")
+
+apr_updt = apr_all %>%
+  mutate(change = ifelse(trend >= 0,"Positive","Negative"))
+
+apr_shared = SharedData$new(apr_updt)
+```
+
+```{r timing-extract-transform}
+
+timing_all <- read_csv("snowpack-timing.csv")
+
+timing_updt = timing_all %>%
+  filter(state != "AK") %>%
+  mutate(change = ifelse(timing >= 0,"Positive","Negative"))
+
+timing_shared = SharedData$new(timing_updt)
+```
+
+Amount
+=====================================
+
+This map shows how much April snowpack has changed from 1982 to 2020.
+
+Each circle represents a different site in the western United States.
+
+- Negative percentages, shown in red, indicate decreased snowpack.
+- Positive percentages, shown in blue, indicate increased snowpack.
+
+Column {data-width=25}
+-------------------------------------
+### Filters
+
+```{r apr-filter}
+filter_checkbox(
+  id = "change",
+  label = "Change",
+  sharedData = apr_shared,
+  group = ~change
+)
+```
+
+Column {data-width=100}
+-------------------------------------
+### Interactive Map
+```{r apr-map}
+apr_map <- leaflet(data = apr_shared)
+
+pal <- colorNumeric(
+  palette = "RdBu",
+  domain = c(-110,110))
+
+apr_map %>%
+  addCircleMarkers(
+    lng = ~longitude,
+    lat = ~latitude,
+    radius = 5,
+    stroke = TRUE,
+    color = "black",
+    weight = 1,
+    fillColor = ~pal(trend),
+    fillOpacity = 0.75,
+    popup = paste0("<b>Latitude: </b>", format(round(apr_shared$data()$latitude, digits=2), nsmall=2), "<br>",
+                   "<b>Longitude: </b>", format(round(apr_shared$data()$longitude, digits=2), nsmall=2), "<br>",
+                   "<b>Amount Changed: </b>", format(round(apr_shared$data()$trend, digits=2), nsmal=2), "%")
+  ) %>%
+  addProviderTiles(providers$Stamen.Terrain) %>%
+  addLegend(
+    "bottomright",
+    pal = pal,
+    values = ~trend,
+    title = "Amount Changed (%)",
+    opacity = 1
+  )
+```
+Timing
+=====================================
+
+This map shows how the date when snowpack reaches its maximum amount has changed from 1982 to 2020.
+
+Each circle represents a different site in the western United States.
+
+- Negative values, shown in red, indicate a shift to earlier days.
+- Positive values, shown in blue, indicate a shift to later days.
+
+Column {data-width=25}
+-------------------------------------
+### Filters
+
+```{r timing-filter}
+filter_checkbox(
+  id = "change",
+  label = "Change",
+  sharedData = timing_shared,
+  group = ~change
+)
+```
+
+Column {data-width=100}
+-------------------------------------
+### Interactive Map
+```{r timing-map}
+timing_map <- leaflet(data = timing_shared)
+
+pal <- colorNumeric(
+  palette = "RdBu",
+  domain = c(-42,42))
+
+timing_map %>%
+  addCircleMarkers(
+    lng = ~longitude,
+    lat = ~latitude,
+    radius = 5,
+    stroke = TRUE,
+    color = "black",
+    weight = 1,
+    fillColor = ~pal(timing),
+    fillOpacity = 0.75,
+    popup = paste0("<b>Latitude: </b>", format(round(timing_shared$data()$latitude, digits=2), nsmall=2), "<br>",
+                   "<b>Longitude: </b>", format(round(timing_shared$data()$longitude, digits=2), nsmall=2), "<br>",
+                   "<b>Timing: </b>", format(round(timing_shared$data()$timing, digits=2), nsmal=2), " days")
+  ) %>%
+  addProviderTiles(providers$Stamen.Terrain) %>%
+  addLegend(
+    "bottomright",
+    pal = pal,
+    values = ~timing,
+    title = "Timing Shift (Days)",
+    opacity = 1
+  )
+```
+
+Notes
+=====================================
+
+By [Jack J. Lee](https://www.jackjleescience.com)
+
+Data from the [U.S. Environmental Protection Agency](https://www.epa.gov/climate-indicators/climate-change-indicators-snowpack)
+
+Files available on [Github](https://github.com/jackjlee/snowpack).
